@@ -698,7 +698,7 @@ contract LayerZeroSettlerTest is Test {
         // For EID_B, settlerA configured peer as settlerB; using a random address should fail
         Origin memory origin = Origin({
             srcEid: EID_B,
-            sender: bytes32(uint256(uint160(address(0xDEAD)))) ,
+            sender: bytes32(uint256(uint160(address(0xDEAD)))),
             nonce: 0
         });
         assertFalse(settlerA.allowInitializePath(origin));
