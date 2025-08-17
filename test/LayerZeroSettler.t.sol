@@ -662,4 +662,45 @@ contract LayerZeroSettlerTest is Test {
         // Verify settlement was recorded
         assertTrue(settlerB.read(settlementId, orchestrator, block.chainid));
     }
+
+    function test_eip712Domain() public view {
+        (bytes1 fields, string memory name, string memory version, uint256 chainId,
+            address verifyingContract, bytes32 salt, uint256[] memory extensions) = settlerA.eip712Domain();
+        assertEq(uint8(fields), uint8(0x0f));
+        assertEq(name, "LayerZeroSettler");
+        assertEq(version, "0.0.1");
+        assertEq(chainId, block.chainid);
+        assertEq(verifyingContract, address(settlerA));
+        assertEq(salt, bytes32(0));
+        assertEq(extensions.length, 0);
+    }
+
+    function test_allowInitializePath_withConfiguredPeer() public view {
+        Origin memory origin = Origin({
+            srcEid: EID_B,
+            sender: bytes32(uint256(uint160(address(settlerB)))),
+            nonce: 0
+        });
+        assertTrue(settlerA.allowInitializePath(origin));
+    }
+
+    function test_allowInitializePath_withDefaultPeer() public view {
+        // For EID_A, no peer was configured on settlerA in setUp; default peer is address(this)
+        Origin memory origin = Origin({
+            srcEid: EID_A,
+            sender: bytes32(uint256(uint160(address(settlerA)))),
+            nonce: 0
+        });
+        assertTrue(settlerA.allowInitializePath(origin));
+    }
+
+    function test_allowInitializePath_rejectsWrongPeer() public view {
+        // For EID_B, settlerA configured peer as settlerB; using a random address should fail
+        Origin memory origin = Origin({
+            srcEid: EID_B,
+            sender: bytes32(uint256(uint160(address(0xDEAD)))) ,
+            nonce: 0
+        });
+        assertFalse(settlerA.allowInitializePath(origin));
+    }
 }

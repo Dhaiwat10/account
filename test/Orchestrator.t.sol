@@ -381,6 +381,33 @@ contract OrchestratorTest is BaseTest {
         oc.withdrawTokens(address(paymentToken), address(0xabcd), 10 ether);
     }
 
+    function testAccountImplementationOfDefaultsToZeroWhenNotEIP7702() public {
+        address eoa = address(uint160(_randomUniform()));
+        vm.etch(eoa, hex"00");
+        assertEq(oc.accountImplementationOf(eoa), address(0));
+    }
+
+    function testSimulateExecuteWithInvalidMerkleProofReverts() public {
+        // Construct a minimal multi-chain intent with a wrong proof to hit VerificationError() in merkle path
+        DelegatedEOA memory d = _randomEIP7702DelegatedEOA();
+        Orchestrator.Intent memory u;
+        u.eoa = d.eoa;
+        u.isMultichain = true;
+        u.nonce = d.d.getNonce(0);
+        // Provide minimal valid executionData encoding
+        u.executionData = _thisTargetFunctionExecutionData(0, bytes(""));
+        // Encode a bogus signature: wrong proof/root/rootSig
+        bytes32[] memory bogusProof = new bytes32[](1);
+        bogusProof[0] = keccak256("bogus");
+        bytes memory rootSig = _sig(d, bytes32(_randomUniform()));
+        bytes32 bogusRoot = keccak256("root");
+        u.signature = abi.encode(bogusProof, bogusRoot, rootSig);
+        u.combinedGas = 200000;
+        // In simulation mode, verification is bypassed; to hit VerificationError we must call execute
+        bytes4 err = oc.execute(abi.encode(u));
+        assertEq(err, bytes4(keccak256("VerificationError()")));
+    }
+
     function testIntentExpiry() public {
         // Warp time forward to ensure we have reasonable timestamps to work with
         vm.warp(1000);
